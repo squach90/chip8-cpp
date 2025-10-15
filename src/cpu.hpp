@@ -69,9 +69,29 @@ class Chip8 {
                 memory[0x200 + i] = static_cast<uint8_t>(buffer[i]);
             }
 
+            std::cout << "Program loaded, first 4 bytes: "
+                << std::hex
+                << (int)memory[0x200] << " "
+                << (int)memory[0x201] << " "
+                << (int)memory[0x202] << " "
+                << (int)memory[0x203] << std::dec
+                << std::endl;
+
+
             delete[] buffer;
             file.close();
         }
+
+        void print_screen() {
+            for (int y = 0; y < 32; ++y) {
+                for (int x = 0; x < 64; ++x) {
+                    std::cout << (gfx[x + y * 64] ? "#" : " ");
+                }
+                std::cout << "\n";
+            }
+            std::cout << "--------------------------------\n";
+        }
+
 
         void emulation_cycle() {
             // Fetch
@@ -87,9 +107,9 @@ class Chip8 {
             uint8_t xline;
             uint8_t pixel;
             uint16_t index;
+            uint16_t running;
 
             bool skipped;
-
             switch (opcode & 0xF000) {
                 case 0x0000:
                     switch (opcode & 0x00FF) {
@@ -100,22 +120,28 @@ class Chip8 {
                             pc += 2;
                             break;
 
-                        case (0x00EE):  // RET
+                        case 0x00EE:  // RET
                             if (sp == 0) {
                                 cerr << "! Stack underflow: RET without CALL" << endl;
-                                pc += 2;
-                                break;
+                                running = false;
+                                return;
                             }
-                            sp--;                 // move stack pointer down
-                            pc = stack[sp];       // pop from stack
+                            sp--;
+                            pc = stack[sp];
+                            if (pc < 0x200 || pc > 0xFFF) {
+                                cerr << "! Invalid return address: 0x" << hex << pc << endl;
+                                running = false;
+                                return;
+                            }
                             cout << "RET → PC=0x" << hex << pc << endl;
                             break;
-                        
+
                         default:
-                            cout << "Unknown opcode [0x0000]: 0x" << hex << opcode << endl;
-                            pc += 2;
-                            break;
+                            cerr << "! Unknown opcode [0x0000]: 0x" << hex << opcode << endl;
+                            running = false;
+                            return;
                     }
+                    break;
 
                 case 0x1000:  // JP addr
                     nnn = opcode & 0x0FFF;
@@ -347,7 +373,7 @@ class Chip8 {
                         static std::random_device rd;
                         static std::mt19937 gen(rd());
                         std::uniform_int_distribution<uint8_t> dis(0, 255);
-                        uint8_t rnd = dis(gen);  // déclaration ici, dans le scope
+                        uint8_t rnd = dis(gen);
 
                         V[x] = rnd & nn;
 
@@ -363,15 +389,23 @@ class Chip8 {
 
 
                     case 0xD000: { // DRW Vx, Vy, nibble
-                        x = V[(opcode & 0x0F00) >> 8] % 64;
-                        y = V[(opcode & 0x00F0) >> 4] % 32;
+                        uint8_t vx = (opcode & 0x0F00) >> 8;
+                        uint8_t vy = (opcode & 0x00F0) >> 4;
+                        x = V[vx];
+                        y = V[vy];
                         height = opcode & 0x000F;
                         V[0xF] = 0;
+
                         for (yline = 0; yline < height; ++yline) {
                             pixel = memory[I + yline];
                             for (xline = 0; xline < 8; ++xline) {
                                 if (pixel & (0x80 >> xline)) {
-                                    index = (x + xline + ((y + yline) * 64)) % (64 * 32);
+                                    int xpos = x + xline;
+                                    int ypos = y + yline;
+                                    
+                                    if (xpos >= 64 || ypos >= 32) continue;
+
+                                    int index = xpos + ypos * 64;
                                     if (gfx[index] == 1) {
                                         V[0xF] = 1;
                                     }
@@ -379,10 +413,24 @@ class Chip8 {
                                 }
                             }
                         }
+
                         draw_flag = true;
                         pc += 2;
+
+                        
+                        for (int row = 0; row < 32; ++row) {
+                            for (int col = 0; col < 64; ++col) {
+                                std::cout << (gfx[col + row * 64] ? "##" : "  ");
+                            }
+                            std::cout << "\n";
+                        }
+
+                        std::cout << "--------------------------------\n";
+
                         break;
                     }
+
+
 
                     
                     break;
@@ -439,7 +487,6 @@ class Chip8 {
 
                             case 0x000A: { // LD Vx, K (wait for key)
                                 int key_pressed = -1;
-
                                 for (int i = 0; i < 16; ++i) {
                                     if (key[i] != 0) {
                                         V[x] = i;
@@ -447,18 +494,19 @@ class Chip8 {
                                         break;
                                     }
                                 }
-
                                 if (key_pressed == -1) {
-                                    // aucune touche pressée → on attend (ne pas avancer pc)
-                                    return;
+                                    // Aucune touche pressée : on attend un peu, mais on avance quand même le PC pour éviter de bloquer
+                                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                                    return; // ou pc += 2; si tu veux avancer même sans entrée
                                 } else {
-                                    cout << "LD V" << hex << uppercase << (int)x 
-                                        << ", K → key " << hex << uppercase << key_pressed 
+                                    cout << "LD V" << hex << uppercase << (int)x
+                                        << ", K → key " << hex << uppercase << key_pressed
                                         << endl;
                                     pc += 2;
                                 }
                                 break;
                             }
+
 
                             
                             case 0x0015:  // LD DT, Vx

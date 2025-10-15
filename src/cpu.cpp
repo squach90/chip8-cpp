@@ -1,42 +1,38 @@
-#include <fstream>
-#include <cstdint>
-#include <string>
 #include <iostream>
-#include <iomanip>
 #include <thread>
 #include <chrono>
-#include <random>
-#include "file_browser.hpp"
+#include <unordered_map>
 #include "cpu.hpp"
-using namespace std;
+#include "file_browser.hpp"
 
 int main() {
-    std::cout << "🎮 Chip-8 Emulator\n";
-    std::cout << "Select a ROM...\n";
+    std::unordered_map<int, uint8_t> key_map = {
+        { '1', 0x1 }, { '2', 0x2 }, { '3', 0x3 }, { '4', 0xC },
+        { 'q', 0x4 }, { 'w', 0x5 }, { 'e', 0x6 }, { 'r', 0xD },
+        { 'a', 0x7 }, { 's', 0x8 }, { 'd', 0x9 }, { 'f', 0xE },
+        { 'z', 0xA }, { 'x', 0x0 }, { 'c', 0xB }, { 'v', 0xF }
+    };
 
+    std::cout << "🎮 Chip-8 Emulator (console mode)\n";
     std::string rom = select_rom_file();
     if (rom.empty()) {
         std::cout << "❌ No ROM selected. Closing...\n";
         return 0;
     }
 
-    std::cout << "✅ Loading of: " << rom << "\n";
-
     Chip8 chip;
     try {
         chip.load_program(rom);
     } catch (const std::exception& e) {
-        std::cerr << "❌ Error when loading ROM: " << e.what() << "\n";
+        std::cerr << "❌ Error loading ROM: " << e.what() << "\n";
         return 1;
     }
 
-    bool running = true;
+    std::cout << "🚀 Emulation started. Press Ctrl+C to quit.\n";
+
     int timer_counter = 0;
 
-    std::cout << "🚀 Emulation Start\n";
-    std::cout << "Press Ctrl+C to quit\n";
-
-    while (running) {
+    while (true) {
         chip.emulation_cycle();
 
         timer_counter++;
@@ -44,17 +40,8 @@ int main() {
             chip.update_timers();
             timer_counter = 0;
         }
-
-        if (chip.draw_flag) {
-            // Ici tu pourrais appeler ton rendu graphique, ex:
-            // window.draw(chip);
-            chip.draw_flag = false;
-        }
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
-
-    std::cout << "👋 Closing the emulator...\n";
 
     return 0;
 }
