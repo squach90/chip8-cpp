@@ -3,6 +3,7 @@
 #include <string>
 #include <iostream>
 #include <iomanip>
+#include <random>
 using namespace std;
 
 class Chip8 {
@@ -88,6 +89,14 @@ class Chip8 {
             uint8_t y;
             uint8_t nn;
             uint8_t oldVx;
+            uint16_t result;
+            uint8_t height;
+            uint8_t yline;
+            uint8_t xline;
+            uint8_t pixel;
+            uint16_t index;
+            uint8_t rnd;
+
             bool skipped;
 
             switch (opcode & 0xF000) {
@@ -226,7 +235,163 @@ class Chip8 {
                             break;
                         
                             // TODO: add 0x0001
+                        case 0x0001:  // OR Vx, Vy
+                            V[x] |= V[y];
+                            pc += 2;
+                            cout << "OR V" << hex << uppercase << (int)x 
+                                << ", V" << (int)y 
+                                << " → V" << (int)x << "=" 
+                                << setw(2) << setfill('0') << (int)V[x]
+                                << nouppercase << dec << endl;
+                            break;
+                        
+                        case 0x0002:  // AND Vx, Vy
+                            V[x] &= V[y];
+                            pc += 2;
+                            cout << "AND V" << hex << uppercase << (int)x
+                                << ", V" << (int)y
+                                << " → V" << (int)x << "="
+                                << setw(2) << setfill('0') << (int)V[x]
+                                << nouppercase << dec << endl;
+                            break;
+                        
+                        case 0x0003:  // XOR Vx, Vy
+                            V[x] ^= V[y];
+                            pc += 2;
+                            cout << "XOR V" << hex << uppercase << (int)x
+                                << ", V" << (int)y
+                                << " → V" << (int)x << "="
+                                << setw(2) << setfill('0') << (int)V[x]
+                                << nouppercase << dec << endl;
+                            break;
+                        
+                        case 0x0004:  // ADD Vx, Vy
+                            result = V[x] + V[y];
+                            V[0xF] = (result > 0xFF) ? 1 : 0;
+                            V[x] = result & 0xFF;
+                            pc += 2;
+
+                            cout << "ADD V" << hex << uppercase << (int)x
+                                << ", V" << (int)y
+                                << " → V" << (int)x << "="
+                                << setw(2) << setfill('0') << (int)V[x]
+                                << " VF=" << (int)V[0xF]
+                                << nouppercase << dec << endl;
+                            break;
+                        
+                        case 0x0005:  // SUB Vx, Vy
+                            V[0xF] = (V[x] >= V[y]) ? 1 : 0;
+                            V[x] = (V[x] - V[y]) & 0xFF;
+                            pc += 2;
+                            cout << "SUB V" << hex << uppercase << (int)x
+                                << ", V" << (int)y
+                                << " → V" << (int)x << "="
+                                << setw(2) << setfill('0') << (int)V[x]
+                                << ", VF=" << (int)V[0xF]
+                                << nouppercase << dec << endl;
+                            break;
+                        
+                        case 0x0006:  // SHR Vx {, Vy}
+                            V[0xF] = V[x] & 0x1;
+                            V[x] >>= 1;
+                            pc += 2;
+                        
+                        case 0x0007:  // SUBN Vx, Vy
+                            V[0xF] = (V[y] >= V[x]) ? 1 : 0;
+                            V[x] = (V[y] - V[x]) & 0xFF;
+                            pc += 2;
+                            cout << "SUBN V" << hex << (int)x 
+                                << ", V" << (int)y 
+                                << " → V" << (int)x << "=" << setw(2) << setfill('0') << hex << (int)V[x]
+                                << ", VF=" << (int)V[0xF]
+                                << endl;
+                            break;
+                        
+                        case 0x000E:  // SHL Vx {, Vy}
+                            V[0xF] = (V[x] & 0x80) >> 7;
+                            V[x] = (V[x] << 1) & 0xFF;
+                            pc += 2;
+                            cout << "SHL V" << hex << (int)x 
+                                << " → V" << (int)x << "=" << setw(2) << setfill('0') << hex << (int)V[x]
+                                << ", VF=" << (int)V[0xF]
+                                << endl;
+                            break;
+
+                        default:
+                            cout << "Unknown opcode [0x8000]: 0x" << hex << opcode << endl;
+                            pc += 2;
+                            break;
+                        
+                        break;
                     }
+
+                    case 0x9000:  // SNE Vx, Vy
+                        x = (opcode & 0x0F00) >> 8;
+                        y = (opcode & 0x00F0) >> 4;
+                        if (V[x] != V[y]) {
+                            pc += 4;
+                            skipped = true;
+                        } else {
+                            pc += 2;
+                        }
+
+                        cout << "SNE V" << hex << (int)x 
+                            << ", V" << (int)y 
+                            << " → " << (skipped ? "skip" : "no skip")
+                            << endl;
+                        break;
+                    
+                    case 0xA000:  // LD I, addr
+                        nnn = opcode & 0x0FFF;
+                        I = nnn;
+                        pc += 2;
+                        cout << "LD I = " << setw(3) << setfill('0') << hex << (int)nnn << endl;
+                        break;
+                    
+                    case 0xC000: {  // RND Vx, byte
+                        uint8_t x = (opcode & 0x0F00) >> 8;
+                        uint8_t nn = opcode & 0x00FF;
+
+                        static std::random_device rd;
+                        static std::mt19937 gen(rd());
+                        std::uniform_int_distribution<uint8_t> dis(0, 255);
+                        uint8_t rnd = dis(gen);  // déclaration ici, dans le scope
+
+                        V[x] = rnd & nn;
+
+                        cout << "RND V" << hex << uppercase << (int)x 
+                            << " = " << (int)rnd 
+                            << " & " << setw(2) << setfill('0') << (int)nn 
+                            << " → " << (int)V[x]
+                            << nouppercase << dec << endl;
+
+                        pc += 2;
+                        break;
+                    }
+
+
+                    case 0xD000: { // DRW Vx, Vy, nibble
+                        x = V[(opcode & 0x0F00) >> 8] % 64;
+                        y = V[(opcode & 0x00F0) >> 4] % 32;
+                        height = opcode & 0x000F;
+                        V[0xF] = 0;
+                        for (yline = 0; yline < height; ++yline) {
+                            pixel = memory[I + yline];
+                            for (xline = 0; xline < 8; ++xline) {
+                                if (pixel & (0x80 >> xline)) {
+                                    index = (x + xline + ((y + yline) * 64)) % (64 * 32);
+                                    if (gfx[index] == 1) {
+                                        V[0xF] = 1;
+                                    }
+                                    gfx[index] ^= 1;
+                                }
+                            }
+                        }
+                        draw_flag = true;
+                        pc += 2;
+                        break;
+                    }
+
                     
                     break;
 
