@@ -1,3 +1,4 @@
+#pragma once
 #include <fstream>
 #include <cstdint>
 #include <string>
@@ -380,8 +381,8 @@ class Chip8 {
                     case 0xD000: { // DRW Vx, Vy, nibble
                         uint8_t vx = (opcode & 0x0F00) >> 8;
                         uint8_t vy = (opcode & 0x00F0) >> 4;
-                        x = V[vx];
-                        y = V[vy];
+                        x = V[vx] % 64;  // wrap horizontal
+                        y = V[vy] % 32;  // wrap vertical
                         height = opcode & 0x000F;
                         V[0xF] = 0;
 
@@ -389,15 +390,13 @@ class Chip8 {
                             pixel = memory[I + yline];
                             for (xline = 0; xline < 8; ++xline) {
                                 if (pixel & (0x80 >> xline)) {
-                                    int xpos = x + xline;
-                                    int ypos = y + yline;
-                                    
-                                    if (xpos >= 64 || ypos >= 32) continue;
-
+                                    int xpos = (x + xline) % 64;
+                                    int ypos = (y + yline) % 32;
                                     int index = xpos + ypos * 64;
-                                    if (gfx[index] == 1) {
+
+                                    if (gfx[index] == 1)
                                         V[0xF] = 1;
-                                    }
+
                                     gfx[index] ^= 1;
                                 }
                             }
@@ -405,9 +404,9 @@ class Chip8 {
 
                         draw_flag = true;
                         pc += 2;
-
                         break;
                     }
+
 
 
 
