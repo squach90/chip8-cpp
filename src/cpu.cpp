@@ -4,6 +4,7 @@
 #include <iostream>
 #include <iomanip>
 #include <random>
+#include "file_browser.hpp"
 using namespace std;
 
 class Chip8 {
@@ -395,6 +396,164 @@ class Chip8 {
                     
                     break;
 
+                    case 0xE000:
+                        x = (opcode & 0x0F00) >> 8;
+                        switch (opcode & 0x00FF) {
+                            case 0x009E:  // SKP Vx
+                                if (key[V[x]]) {
+                                    pc += 4;
+                                } else {
+                                    pc += 2;
+                                }
+
+                                cout << "SKP V" << hex << uppercase << (int)x
+                                    << " (key=" << setw(1) << setfill('0') << hex << (int)V[x] << ") → "
+                                    << ((key[V[x]]) ? "skip" : "no skip")
+                                    << endl;
+
+                                break;
+                            
+                            case 0x00A1:  // SKNP Vx
+                                if (!key[V[x]]) {
+                                    pc += 4;
+                                } else {
+                                    pc += 2;
+                                }
+                                cout << "SKNP V" << hex << uppercase << (int)x 
+                                    << " (key=" << setw(1) << setfill('0') << hex << (int)V[x] << ") → "
+                                    << ((!key[V[x]]) ? "skip" : "no skip") 
+                                    << endl;
+                                break;
+
+                            
+                            default:
+                                cout << "Unknown opcode [0xE000]: 0x" << hex << opcode << endl;
+                                pc += 2;
+                                break;
+
+                        }
+                    break;
+
+                    case 0xF000:
+                        x = (opcode & 0x0F00) >> 8;
+                        switch (opcode & 0x00FF) {
+                            case 0x0007: { // LD Vx, DT
+                                V[x] = delay_timer;
+                                cout << "LD V" << hex << uppercase << (int)x 
+                                    << ", DT (" << dec << (int)delay_timer << ")" 
+                                    << endl;
+                                pc += 2;
+                                break;
+                            }
+
+                            case 0x000A: { // LD Vx, K (wait for key)
+                                int key_pressed = -1;
+
+                                for (int i = 0; i < 16; ++i) {
+                                    if (key[i] != 0) {
+                                        V[x] = i;
+                                        key_pressed = i;
+                                        break;
+                                    }
+                                }
+
+                                if (key_pressed == -1) {
+                                    // aucune touche pressée → on attend (ne pas avancer pc)
+                                    return;
+                                } else {
+                                    cout << "LD V" << hex << uppercase << (int)x 
+                                        << ", K → key " << hex << uppercase << key_pressed 
+                                        << endl;
+                                    pc += 2;
+                                }
+                                break;
+                            }
+
+                            
+                            case 0x0015:  // LD DT, Vx
+                                delay_timer = V[x];
+                                cout << "LD DT, V" << hex << uppercase << (int)x 
+                                    << " (" << dec << (int)V[x] << ")" << endl;
+                                pc += 2;
+                                break;
+
+                            case 0x0018: // LD ST, Vx
+                                sound_timer = V[x];
+                                cout << "LD ST, V" << hex << uppercase << (int)x 
+                                    << " (" << dec << (int)V[x] << ") → sound_timer=" 
+                                    << dec << (int)sound_timer << endl;
+                                pc += 2;
+                                break;
+                    
+
+                            case 0x001E: // ADD I, Vx
+                                I += V[x];
+                                cout << "ADD I, V" << hex << uppercase << (int)x 
+                                    << " → I=" << setw(3) << setfill('0') << hex << uppercase << (int)I 
+                                    << endl;
+                                pc += 2;
+                                break;
+                            
+
+                            case 0x0029: // LD F, Vx
+                                I = 0x50 + (V[x] * 5);
+                                cout << "LD F, V" << hex << uppercase << (int)x 
+                                    << " → I=" << setw(3) << setfill('0') << hex << uppercase << (int)I 
+                                    << endl;
+                                pc += 2;
+                                break;
+                            
+
+                            case 0x0033: { // LD B, Vx (BCD)
+                                uint8_t value = V[x];
+                                memory[I]     = value / 100;
+                                memory[I + 1] = (value / 10) % 10;
+                                memory[I + 2] = value % 10;
+                                cout << "LD B, V" << hex << uppercase << (int)x 
+                                    << " (" << dec << (int)value << ") → [" 
+                                    << setw(3) << setfill('0') << hex << (int)I << "]" 
+                                    << endl;
+                                pc += 2;
+                                break;
+                            }
+
+                            case 0x0055: // LD [I], Vx
+                                for (int i = 0; i <= x; ++i)
+                                    memory[I + i] = V[i];
+                                cout << "LD [I], V" << hex << uppercase << (int)x << endl;
+                                pc += 2;
+                                break;
+                            
+
+                            case 0x0065: // LD Vx, [I]
+                                for (int i = 0; i <= x; ++i)
+                                    V[i] = memory[I + i];
+                                cout << "LD V" << hex << uppercase << (int)x << ", [I]" << endl;
+                                pc += 2;
+                                break;
+                            
+
+                            default:
+                                cout << "Unknown opcode [0xF000]: 0x" 
+                                    << setw(4) << setfill('0') << hex << uppercase << (int)opcode 
+                                    << endl;
+                                pc += 2;
+                                break;
+                            
+                        }
+                        break;
+                    
+
+            }
+
+            if (delay_timer > 0) {
+                delay_timer -= 1;
+            }
+            if (sound_timer > 0) {
+                if (sound_timer == 1) {
+                    // TODO: Add beep : self.beep.play()
+                }
+                sound_timer -= 1;
             }
         }
 
@@ -402,6 +561,11 @@ class Chip8 {
 
 int main() {
     Chip8 chip;
-    
+    std::string rom = select_rom_file();
+    if (rom.empty())
+        std::cout << "❌ No ROM selected.\n";
+
+    cout << "✅ Loading of: " << rom << "\n";
+
     return 0;
 }
