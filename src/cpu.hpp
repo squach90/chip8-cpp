@@ -4,7 +4,6 @@
 #include <iostream>
 #include <iomanip>
 #include <random>
-#include "file_browser.hpp"
 using namespace std;
 
 class Chip8 {
@@ -80,16 +79,6 @@ class Chip8 {
 
             delete[] buffer;
             file.close();
-        }
-
-        void print_screen() {
-            for (int y = 0; y < 32; ++y) {
-                for (int x = 0; x < 64; ++x) {
-                    std::cout << (gfx[x + y * 64] ? "#" : " ");
-                }
-                std::cout << "\n";
-            }
-            std::cout << "--------------------------------\n";
         }
 
 
@@ -417,16 +406,6 @@ class Chip8 {
                         draw_flag = true;
                         pc += 2;
 
-                        
-                        for (int row = 0; row < 32; ++row) {
-                            for (int col = 0; col < 64; ++col) {
-                                std::cout << (gfx[col + row * 64] ? "##" : "  ");
-                            }
-                            std::cout << "\n";
-                        }
-
-                        std::cout << "--------------------------------\n";
-
                         break;
                     }
 
@@ -496,7 +475,7 @@ class Chip8 {
                                 }
                                 if (key_pressed == -1) {
                                     
-                                    
+
                                     return; // ou pc += 2; si tu veux avancer même sans entrée
                                 } else {
                                     cout << "LD V" << hex << uppercase << (int)x

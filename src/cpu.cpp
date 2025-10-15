@@ -41,15 +41,6 @@ int main() {
             timer_counter = 0;
         }
 
-        if (chip.draw_flag) {
-            #ifdef _WIN32
-            system("cls");
-            #else
-            system("clear");
-            #endif
-            chip.print_screen();
-            chip.draw_flag = false;
-        }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
