@@ -495,8 +495,8 @@ class Chip8 {
                                     }
                                 }
                                 if (key_pressed == -1) {
-                                    // Aucune touche pressée : on attend un peu, mais on avance quand même le PC pour éviter de bloquer
-                                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                                    
+                                    
                                     return; // ou pc += 2; si tu veux avancer même sans entrée
                                 } else {
                                     cout << "LD V" << hex << uppercase << (int)x
