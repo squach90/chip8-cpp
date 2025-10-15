@@ -1,0 +1,1 @@
+g++ -std=c++17 cpu.cpp file_browser.cpp -o chip8 -lSDL2 -pthread
