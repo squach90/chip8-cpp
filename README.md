@@ -78,4 +78,5 @@ Optional flags:
 - **Standard C** – `stdio.h`, `stdint.h`, `stdbool.h` ,`stdlib.h`, `string.h`, `stddef.h`, `time.h`
 - **POSIX / Terminal** – `unistd.h`, `dirent.h`, `termios.h`, `sys/stat.h`, `limits.h`
 
+- **[CHIP-8 Wikipedia](https://en.wikipedia.org/wiki/CHIP-8)**
 > Anyone is free to copy, modify, publish, use, compile, sell, or distribute this software, either in source code form or as a compiled binary, for any purpose, commercial or non-commercial, and by any means.
