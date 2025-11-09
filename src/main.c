@@ -3,6 +3,7 @@
 #include "../includes/cpu.h"
 #include "../includes/display.h"
 #include "../includes/controller.h"
+#include "../includes/file_browser.h"
 
 int debug = 0;
 
@@ -20,9 +21,17 @@ int main(int argc, char **argv) {
     Chip8 chip;
     chip8_init(&chip);
 
-    if (chip8_load_program(&chip, "src/test/pong.ch8") != 0) {
+    char *file_path = select_file();
+    if (!file_path) {
+        fprintf(stderr, "❌ No file select.\n");
         return 1;
     }
+
+    if (chip8_load_program(&chip, file_path) != 0) {
+        free(file_path);
+        return 1;
+    }
+    free(file_path);
 
     createWindow();
     controller_init();
